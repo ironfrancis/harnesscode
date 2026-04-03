@@ -37,6 +37,52 @@ def get_bug_knowledge_dir(project_id: str):
     return bug_dir
 
 
+def get_language_from_config(project_dir: str = "") -> str:
+    """Read the language setting from `.harnesscode/config.yaml`.
+
+    Priority:
+    1. `HARNESSCODE_LANGUAGE` environment variable
+    2. `language` field in `config.yaml`
+    3. default to `en`
+
+    Returns:
+        Language code: `en` or `zh`.
+    """
+    # 1. Environment variable wins.
+    env_lang = os.environ.get("HARNESSCODE_LANGUAGE", "").strip().lower()
+    if env_lang in ("en", "zh", "zh-cn", "zh_CN"):
+        return "zh" if env_lang.startswith("zh") else "en"
+
+    # 2. Read from config.yaml.
+    config_path = get_project_config_file(project_dir)
+    if config_path.exists():
+        try:
+            # Try YAML parsing first.
+            import yaml
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+            if config and isinstance(config, dict):
+                lang = config.get("language", "").strip().lower()
+                if lang in ("en", "zh", "zh-cn", "zh_CN"):
+                    return "zh" if lang.startswith("zh") else "en"
+        except ImportError:
+            # Fall back to simple text parsing when YAML is unavailable.
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("language:"):
+                            val = line.split(":", 1)[1].strip().strip('"').strip("'").lower()
+                            if val in ("en", "zh", "zh-cn", "zh_CN"):
+                                return "zh" if val.startswith("zh") else "en"
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    # 3. Default.
+    return "en"
+
+
 def get_backend_from_config(project_dir: str = "") -> str:
     """Read the backend setting from `.harnesscode/config.yaml`.
 
@@ -52,7 +98,7 @@ def get_backend_from_config(project_dir: str = "") -> str:
     env_backend = os.environ.get("HARNESSCODE_BACKEND", "").strip().lower()
     if env_backend in ("opencode", "claude"):
         return env_backend
-    
+
     # 2. Read from config.yaml.
     config_path = get_project_config_file(project_dir)
     if config_path.exists():
@@ -78,6 +124,6 @@ def get_backend_from_config(project_dir: str = "") -> str:
                 pass
         except Exception:
             pass
-    
+
     # 3. Default.
     return "opencode"

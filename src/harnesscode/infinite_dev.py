@@ -258,37 +258,39 @@ def get_available_models():
 
 def select_model():
     """Interactive model selection"""
-    global SELECTED_MODEL
+    from utils.i18n import t, T
     
+    global SELECTED_MODEL
+
     models = get_available_models()
     if not models:
         log("[Model] No models found in config, using default")
         return None
-    
-    print("\nAvailable models:")
+
+    print(t("infinite_dev.model_select_title"))
     print("-" * 50)
     for i, m in enumerate(models, 1):
         print(f"  [{i}] {m['id']}")
     print("-" * 50)
-    
+
     while True:
         try:
-            choice = input("\nPlease select a model (enter number): ").strip()
+            choice = input(t("infinite_dev.model_select_prompt")).strip()
             if not choice:
-                print("Using default model")
+                print(t("infinite_dev.model_using_default"))
                 return None
             idx = int(choice)
             if 1 <= idx <= len(models):
                 selected = models[idx - 1]
                 SELECTED_MODEL = selected["id"]
-                print(f"Selected: {SELECTED_MODEL}")
+                print(T("infinite_dev.model_selected", model=SELECTED_MODEL))
                 return SELECTED_MODEL
             else:
-                print(f"Invalid number, please enter 1-{len(models)}")
+                print(T("infinite_dev.model_invalid", max=len(models)))
         except ValueError:
-            print("Please enter a valid number")
+            print(t("infinite_dev.model_invalid").format(max=len(models)))
         except KeyboardInterrupt:
-            print("\nCancelled")
+            print(t("infinite_dev.model_cancelled"))
             sys.exit(0)
 
 
@@ -705,10 +707,12 @@ def list_branches(repo_dir):
 
 def select_branch_for_repo(repo_dir):
     """Interactively select a branch for a single Git repository, returns the selected branch name (or new branch name if newly created)"""
-    print(f"\n[Git Repository] {repo_dir}")
+    from utils.i18n import t, T
     
+    print(T("infinite_dev.git_repo_title", repo=repo_dir))
+
     local_branches, remote_branches = list_branches(repo_dir)
-    
+
     # Merge branch lists and remove duplicates.
     all_branches = []
     seen = set()
@@ -716,10 +720,10 @@ def select_branch_for_repo(repo_dir):
         if b not in seen:
             all_branches.append(b)
             seen.add(b)
-    
+
     if not all_branches:
-        print("  This repository has no branch information")
-        new_branch = input("  Create new branch? Enter new branch name (leave empty to skip): ").strip()
+        print(f"  {t('infinite_dev.git_no_branches')}")
+        new_branch = input(t("infinite_dev.git_create_branch")).strip()
         if new_branch:
             try:
                 subprocess.run(
@@ -731,22 +735,22 @@ def select_branch_for_repo(repo_dir):
                     encoding='utf-8',
                     errors='replace'
                 )
-                print(f"  Created and switched to branch '{new_branch}'")
+                print(T("infinite_dev.git_created_branch", branch=new_branch))
                 return new_branch
             except subprocess.CalledProcessError as e:
-                print(f"  Failed to create branch: {e.stderr}")
+                print(T("infinite_dev.git_create_failed", error=e.stderr))
                 return None
         else:
             return None
-    
-    print("  Available branches:")
+
+    print(f"  {t('infinite_dev.git_available_branches')}")
     for i, branch in enumerate(all_branches, 1):
-        marker = " (current)" if branch in local_branches else ""
+        marker = t("infinite_dev.git_branch_current") if branch in local_branches else ""
         print(f"    {i}. {branch}{marker}")
-    print(f"    {len(all_branches) + 1}. Create new branch")
-    
+    print(f"    {len(all_branches) + 1}. {t('infinite_dev.git_create_new_branch')}")
+
     while True:
-        choice = input("  Please select a branch (enter number): ").strip()
+        choice = input(t("infinite_dev.git_select_branch")).strip()
         if not choice.isdigit():
             continue
         idx = int(choice)
@@ -768,7 +772,7 @@ def select_branch_for_repo(repo_dir):
                     )
                     return local_name
                 except subprocess.CalledProcessError as e:
-                    print(f"  Failed to switch branch: {e.stderr}")
+                    print(T("infinite_dev.git_switch_failed", branch=local_name, error=e.stderr))
                     return None
             else:
                 # Switch directly for local branches.
@@ -784,11 +788,11 @@ def select_branch_for_repo(repo_dir):
                     )
                     return selected
                 except subprocess.CalledProcessError as e:
-                    print(f"  Failed to switch branch: {e.stderr}")
+                    print(T("infinite_dev.git_switch_failed", branch=selected, error=e.stderr))
                     return None
         elif idx == len(all_branches) + 1:
             # Create a new branch.
-            new_branch = input("  Enter a new branch name: ").strip()
+            new_branch = input(t("infinite_dev.git_new_branch_name")).strip()
             if not new_branch:
                 print("  Branch name cannot be empty")
                 continue
@@ -802,10 +806,10 @@ def select_branch_for_repo(repo_dir):
                     encoding='utf-8',
                     errors='replace'
                 )
-                print(f"  Created and switched to branch '{new_branch}'")
+                print(T("infinite_dev.git_created_switched", branch=new_branch))
                 return new_branch
             except subprocess.CalledProcessError as e:
-                print(f"  Failed to create branch: {e.stderr}")
+                print(T("infinite_dev.git_create_failed", error=e.stderr))
                 continue
         else:
             print("  Invalid selection, please try again")

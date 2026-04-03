@@ -83,12 +83,14 @@ def is_initialized(backend=None) -> bool:
 
 def initialize(backend=None) -> bool:
     """Install agent files and configuration for the selected backend."""
+    from utils.i18n import t, T
+    
     if backend is None:
         backend = get_backend()
 
     if is_initialized(backend):
         return True
-    
+
     try:
         src_dir = get_harnesscode_agents_dir()
         copied_files = backend.install_agents(src_dir)
@@ -98,10 +100,10 @@ def initialize(backend=None) -> bool:
             harnesscode_config = get_harnesscode_config_template()
             backend.merge_config(harnesscode_config)
 
-        print(f"[HarnessCode] Initialized {backend.name} config with {len(copied_files)} agents")
+        print(T("installer.init_agents", backend=backend.name, count=len(copied_files)))
         return True
     except Exception as e:
-        print(f"[HarnessCode] Failed to initialize: {e}")
+        print(T("installer.init_failed", error=e))
         return False
 
 
@@ -157,8 +159,10 @@ Thumbs.db
 
 def update_gitignore(project_dir: str) -> None:
     """Update the project's `.gitignore` with harnesscode rules."""
-    gitignore_path = os.path.join(project_dir, ".gitignore")
+    from utils.i18n import t, T
     
+    gitignore_path = os.path.join(project_dir, ".gitignore")
+
     harnesscode_rules = [
         "# HarnessCode runtime data",
         ".harnesscode/",
@@ -169,7 +173,7 @@ def update_gitignore(project_dir: str) -> None:
         "harnesscode",
         "harnesscode.bat",
     ]
-    
+
     existing_content = ""
     if os.path.exists(gitignore_path):
         try:
@@ -177,35 +181,37 @@ def update_gitignore(project_dir: str) -> None:
                 existing_content = f.read()
         except Exception:
             pass
-    
+
     lines_to_add = []
     for rule in harnesscode_rules:
         if rule and rule not in existing_content:
             lines_to_add.append(rule)
-    
+
     if lines_to_add:
         with open(gitignore_path, "a", encoding="utf-8") as f:
             if existing_content and not existing_content.endswith("\n"):
                 f.write("\n")
             f.write("\n".join(lines_to_add) + "\n")
-        print(f"[HarnessCode] Updated .gitignore with {len(lines_to_add)} rules")
+        print(T("installer.gitignore_updated", count=len(lines_to_add)))
     else:
-        print("[HarnessCode] .gitignore already contains harnesscode rules")
+        print(t("installer.gitignore_exists"))
 
 
 def init_git_repo():
     """Initialize a Git repository in the current project if needed."""
-    project_dir = os.getcwd()
+    from utils.i18n import t, T
     
+    project_dir = os.getcwd()
+
     # 1. Check subdirectories for `.git` first.
     for entry in os.listdir(project_dir):
         entry_path = os.path.join(project_dir, entry)
         if os.path.isdir(entry_path):
             sub_git_dir = os.path.join(entry_path, ".git")
             if os.path.exists(sub_git_dir):
-                print(f"[HarnessCode] Git repo found in subdirectory: {entry}, skipping root init")
+                print(T("installer.git_subdir", dir=entry))
                 return False
-    
+
     # 2. Check whether the current directory is already inside a Git repository.
     try:
         result = subprocess.run(
@@ -217,51 +223,53 @@ def init_git_repo():
             timeout=10
         )
         if result.returncode == 0:
-            print("[HarnessCode] Git repository already exists")
+            print(t("installer.git_found"))
             update_gitignore(project_dir)
             return False
     except Exception:
         pass
-    
+
     # 3. Check for `.git` in the current directory.
     git_dir = os.path.join(project_dir, ".git")
     if os.path.exists(git_dir):
         update_gitignore(project_dir)
         return False
-    
+
     # 4. Only initialize when none of the checks found a repository.
     try:
         subprocess.run(["git", "init"], cwd=project_dir, check=True,
                        capture_output=True, encoding='utf-8', errors='replace')
-        print("[HarnessCode] Initialized git repository")
-        
+        print(t("installer.git_init"))
+
         # 5. Create or update `.gitignore`.
         gitignore_path = os.path.join(project_dir, ".gitignore")
         if not os.path.exists(gitignore_path):
             with open(gitignore_path, "w", encoding="utf-8") as f:
                 f.write(get_harnesscode_gitignore_content())
-            print("[HarnessCode] Created .gitignore with harnesscode rules")
+            print(t("installer.gitignore_created"))
         else:
             update_gitignore(project_dir)
-        
+
         return True
     except Exception as e:
-        print(f"[HarnessCode] Failed to init git: {e}")
+        print(T("installer.git_init_failed", error=e))
         return False
 
 
 def check_and_install_dependencies():
     """Check for missing dependencies and install them if needed."""
-    missing_deps = []
+    from utils.i18n import t, T
     
+    missing_deps = []
+
     # Check PyYAML.
     try:
         import yaml
     except ImportError:
         missing_deps.append("pyyaml")
-    
+
     if missing_deps:
-        print(f"[HarnessCode] Installing missing dependencies: {', '.join(missing_deps)}")
+        print(T("installer.deps_install", deps=', '.join(missing_deps)))
         try:
             subprocess.run(
                 [sys.executable, "-m", "pip", "install"] + missing_deps,
@@ -270,30 +278,32 @@ def check_and_install_dependencies():
                 encoding='utf-8',
                 errors='replace'
             )
-            print(f"[HarnessCode] Dependencies installed successfully")
+            print(t("installer.deps_installed"))
         except subprocess.CalledProcessError as e:
-            print(f"[HarnessCode] Failed to install dependencies: {e}")
-            print(f"[HarnessCode] Please install manually: pip install {' '.join(missing_deps)}")
+            print(T("installer.deps_failed", error=e))
+            print(T("installer.deps_manual", deps=' '.join(missing_deps)))
 
 
 def ensure_input_directories() -> None:
     """Ensure input/ directory structure exists, create or complete missing parts."""
+    from utils.i18n import t, T
+    
     project_dir = os.getcwd()
     required_dirs = [
         os.path.join(project_dir, "input", "prd"),
         os.path.join(project_dir, "input", "techspec"),
     ]
-    
+
     created = []
     for dir_path in required_dirs:
         if not os.path.exists(dir_path):
             os.makedirs(dir_path, exist_ok=True)
             created.append(os.path.relpath(dir_path, project_dir))
-    
+
     if created:
-        print(f"[HarnessCode] Created input directories: {', '.join(created)}")
+        print(T("installer.input_dirs", dirs=', '.join(created)))
     else:
-        print("[HarnessCode] Input directory structure already complete")
+        print(t("installer.input_exists"))
 
 
 def check_and_initialize(backend_name=None) -> None:
@@ -303,28 +313,30 @@ def check_and_initialize(backend_name=None) -> None:
         backend_name: Explicit backend name (`opencode` or `claude`).
             If omitted, load it from config or auto-detect it.
     """
-    check_and_install_dependencies()
+    from utils.i18n import t, T
     
+    check_and_install_dependencies()
+
     # If no backend was provided explicitly, load it from project config first.
     if not backend_name:
         from utils.config import get_backend_from_config
         backend_name = get_backend_from_config()
-    
+
     backend = get_backend(backend_name)
-    
+
     if not is_initialized(backend):
-        print(f"[HarnessCode] First run detected, initializing for {backend.name}...")
+        print(T("installer.first_run", backend=backend.name))
         initialize(backend)
-    
+
     ensure_input_directories()
-    
+
     # Validate backend CLI availability before starting.
     if not backend.is_installed():
         print("")
         print("=" * 60)
-        print(f"  [WARNING] {backend.name} command not found!")
+        print(f"  [{t('installer.warning_title')}] {T('installer.warning_not_found', backend=backend.name)}")
         print("")
-        print(f"  HarnessCode requires {backend.name} to run. Please install it:")
+        print(f"  {T('installer.warning_hint', backend=backend.name)}")
         print(backend.get_install_hint())
         print("=" * 60)
         print("")
@@ -333,61 +345,62 @@ def check_and_initialize(backend_name=None) -> None:
 def uninstall() -> None:
     """Uninstall harnesscode and clean local and optional global data."""
     from utils.config import get_backend_from_config
-    
-    print("[HarnessCode] Uninstalling...")
-    
+    from utils.i18n import t, T
+
+    print(t("installer.uninstall_title"))
+
     # Read the current backend from config.yaml.
     project_dir = os.getcwd()
     backend_name = get_backend_from_config(project_dir)
     backend = get_backend(backend_name)
-    
+
     # 1. Remove agent files and config for the current backend.
     removed = backend.uninstall_agents()
     if removed:
-        print(f"[HarnessCode] Removed from {backend.name}: {', '.join(removed)}")
-    
+        print(T("installer.uninstall_removed", backend=backend.name, files=', '.join(removed)))
+
     # 2. Also clean the other backend if it has installed harnesscode agents.
     other_name = "claude" if backend.name == "opencode" else "opencode"
     other_backend = get_backend(other_name)
     if other_backend.is_agents_initialized():
         other_removed = other_backend.uninstall_agents()
         if other_removed:
-            print(f"[HarnessCode] Also removed from {other_name}: {', '.join(other_removed)}")
-    
+            print(T("installer.uninstall_removed", backend=other_name, files=', '.join(other_removed)))
+
     # 3. Remove the current project's `.harnesscode/` directory and `dev-log.txt`.
     harnesscode_local = os.path.join(project_dir, ".harnesscode")
     dev_log = os.path.join(project_dir, "dev-log.txt")
-    
+
     if os.path.exists(harnesscode_local):
         shutil.rmtree(harnesscode_local)
         print(f"[HarnessCode] Removed {harnesscode_local}")
-    
+
     if os.path.exists(dev_log):
         os.remove(dev_log)
         print(f"[HarnessCode] Removed {dev_log}")
-    
+
     # 4. Ask whether to delete global data under `~/.harnesscode/`.
     global_harnesscode = Path.home() / ".harnesscode"
     if global_harnesscode.exists():
         print(f"")
-        print(f"[HarnessCode] Global data directory: {global_harnesscode}")
-        print(f"        This contains learning data and metrics for ALL projects.")
-        answer = input("        Delete global data? (y/N): ").strip().lower()
+        print(T("installer.uninstall_global", dir=global_harnesscode))
+        print(f"        {t('installer.uninstall_global_hint')}")
+        answer = input(t("installer.uninstall_delete_global")).strip().lower()
         if answer == "y":
             shutil.rmtree(global_harnesscode)
-            print(f"[HarnessCode] Removed {global_harnesscode}")
+            print(T("installer.uninstall_removed_global", dir=global_harnesscode))
         else:
-            print(f"[HarnessCode] Kept {global_harnesscode}")
-    
+            print(T("installer.uninstall_kept_global", dir=global_harnesscode))
+
     print("")
-    print("[HarnessCode] Uninstall complete.")
-    
+    print(t("installer.uninstall_complete"))
+
     # 5. Ask whether to uninstall the Python package as well.
     print("")
-    print("[HarnessCode] Do you also want to remove the harnesscode command?")
-    answer_pkg = input("        Uninstall harnesscode package? (Y/n): ").strip().lower()
+    print(t("installer.uninstall_pkg_hint"))
+    answer_pkg = input(t("installer.uninstall_pkg_confirm")).strip().lower()
     if answer_pkg != "n":
-        print("[HarnessCode] Uninstalling harnesscode package...")
+        print(t("installer.uninstall_pkg_removing"))
         try:
             subprocess.run(
                 [sys.executable, "-m", "pip", "uninstall", "harnesscode", "-y"],
@@ -395,12 +408,12 @@ def uninstall() -> None:
                 encoding='utf-8',
                 errors='replace'
             )
-            print("[HarnessCode] harnesscode package removed.")
-            print("[HarnessCode] All clean! harnesscode has been completely removed.")
+            print(t("installer.uninstall_pkg_removed"))
+            print(t("installer.uninstall_pkg_all_clean"))
         except Exception as e:
-            print(f"[HarnessCode] Failed to uninstall package: {e}")
-            print("[HarnessCode] Please run manually:")
+            print(T("installer.uninstall_pkg_failed", error=e))
+            print(t("installer.uninstall_pkg_manual"))
             print(f"        {sys.executable} -m pip uninstall harnesscode")
     else:
-        print("[HarnessCode] Package kept. harnesscode command is still available.")
-        print("[HarnessCode] To remove later: python -m pip uninstall harnesscode")
+        print(t("installer.uninstall_pkg_kept"))
+        print(t("installer.uninstall_pkg_hint_later"))

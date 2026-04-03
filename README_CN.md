@@ -230,6 +230,7 @@ pip install harnesscode
 | `hc status` | 显示项目状态和指标 |
 | `hc restore` | 从备份恢复配置文件 |
 | `hc uninstall` | 卸载 HarnessCode |
+| `hc config` | 查看或修改配置设置 |
 | `hc --version` | 显示版本信息 |
 
 ### 选项
@@ -239,6 +240,15 @@ hc init --backend claude    # 指定 Claude Code 引擎
 hc start --backend opencode # 指定 OpenCode 引擎
 ```
 
+### 配置
+
+```bash
+hc config                   # 查看当前配置
+hc config language zh       # 切换为中文
+hc config language en       # 切换为英文
+hc config backend claude    # 设置后端为 Claude
+```
+
 ---
 
 ## 环境变量
@@ -246,6 +256,7 @@ hc start --backend opencode # 指定 OpenCode 引擎
 | 变量 | 说明 |
 |------|------|
 | `HARNESSCODE_BACKEND` | 默认 AI 引擎 (opencode/claude) |
+| `HARNESSCODE_LANGUAGE` | 默认语言 (en/zh) |
 | `OPENCODE_PATH` | 自定义 opencode 命令路径 |
 | `CLAUDE_PATH` | 自定义 claude 命令路径 |
 

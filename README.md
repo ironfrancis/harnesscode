@@ -230,6 +230,7 @@ Code conventions and standards. Each file defines rules for a specific category.
 | `hc status` | Show project status and metrics |
 | `hc restore` | Restore config files from backup |
 | `hc uninstall` | Uninstall HarnessCode |
+| `hc config` | View or modify configuration settings |
 | `hc --version` | Show version info |
 
 ### Options
@@ -239,6 +240,15 @@ hc init --backend claude    # Use Claude Code engine
 hc start --backend opencode # Use OpenCode engine
 ```
 
+### Configuration
+
+```bash
+hc config                   # View current configuration
+hc config language zh       # Switch to Chinese
+hc config language en       # Switch to English
+hc config backend claude    # Set backend to Claude
+```
+
 ---
 
 ## Environment Variables
@@ -246,6 +256,7 @@ hc start --backend opencode # Use OpenCode engine
 | Variable | Description |
 |----------|-------------|
 | `HARNESSCODE_BACKEND` | Default AI engine (opencode/claude) |
+| `HARNESSCODE_LANGUAGE` | Default language (en/zh) |
 | `OPENCODE_PATH` | Custom opencode command path |
 | `CLAUDE_PATH` | Custom claude command path |
 
